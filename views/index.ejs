@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/stylesheets/style.css" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body>
+    <div class="container mt-5">
+      <form id="pdamForm">
+        <label for="pdam">Pilih PDAM:</label>
+        <select id="pdam" name="kode_produk" class="form-control mb-3">
+          <option value="WASDA">PDAM SIDOARJO</option>
+          <option value="WABONDO">PDAM BONDOWOSO</option>
+        </select>
+
+        <label for="idpel">ID Pelanggan:</label>
+        <input type="text" id="idpel" name="idpel" class="form-control mb-3" />
+
+        <button type="button" id="inquiryBtn" class="btn btn-primary">
+          Inquiry
+        </button>
+        <button type="button" id="paymentBtn" class="btn btn-success">
+          Payment
+        </button>
+        <button type="button" id="historyBtn" class="btn btn-info">
+          Transaction History
+        </button>
+      </form>
+    </div>
+
+    <div id="result" class="mt-5">
+      <!-- Result from inquiry or payment will be shown here -->
+    </div>
+
+    <button type="button" id="downloadPdfBtn" class="btn btn-danger mt-5">
+      Download PDF
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+      $('#inquiryBtn').click(function () {
+        const idpel = $('#idpel').val()
+        const kode_produk = $('#pdam').val()
+
+        $.post('/inquiry', { idpel, kode_produk }, function (data) {
+          // console.log('Response data:', data)
+          if (data.status === 'success') {
+            const receipt = data.data
+            console.log(receipt)
+            let receiptHtml = `
+                <div style="font-family: Arial, sans-serif; margin: 20px; padding: 10px;">
+                    <h2 style="text-align: center;">STRUK PEMBAYARAN PDAM SIDOARJO</h2>
+                    <p><strong>TANGGAL:</strong> ${receipt.tanggal}</p>
+                    <p><strong>NO. RESI:</strong> ${receipt.noResi}</p>
+                    <p><strong>NAMA PAM:</strong> ${receipt.namaPAM}</p>
+                    <p><strong>NO. PELANGGAN:</strong> ${receipt.noPelanggan}</p>
+                    <p><strong>NAMA:</strong> ${receipt.customerName}</p>
+                    <p><strong>ALAMAT:</strong> ${receipt.customerAddress}</p>
+                    <p><strong>RINCIAN TAGIHAN: </strong></p>
+                    <ul>`
+
+            receipt.rincianTagihan.forEach((bill) => {
+              receiptHtml += `<li>${bill.bulan} ${
+                bill.tahun
+              }: Rp ${bill.nominal.toLocaleString()} (Denda: Rp ${bill.penalty.toLocaleString()})</li>`
+            })
+
+            receiptHtml += `
+                    </ul>
+                    <p><strong>TOTAL TAGIHAN:</strong> Rp ${receipt.totalTagihan.toLocaleString()}</p>
+                    <p><strong>DENDA:</strong> Rp ${receipt.denda.toLocaleString()}</p>
+                    <p><strong>ADMIN:</strong> Rp ${receipt.adminCharge.toLocaleString()}</p>
+                    <p><strong>TERBILANG:</strong> ${receipt.terbilang}</p>
+                    <p style="text-align: center; margin-top: 20px;">PDAM SIDOARJO MENYATAKAN STRUK INI SEBAGAI BUKTI PEMBAYARAN YANG SAH</p>
+                </div>`
+
+            $('#result').html(receiptHtml)
+          } else {
+            $('#result').html(
+              '<p style="color: red;">Error: ' + data.msg + '</p>'
+            )
+          }
+        }).fail(function () {
+          $('#result').html(
+            '<p style="color: red;">Request failed. Please try again later.</p>'
+          )
+        })
+      })
+
+      $('#paymentBtn').click(function () {
+        const idpel = $('#idpel').val()
+        const kode_produk = $('#pdam').val()
+
+        $.post('/payment', { idpel, kode_produk }, function (data) {
+          console.log('Response data:', data)
+          if (data.status === 'success') {
+            const receipt = data.receipt
+            let receiptHtml = `
+                <div style="font-family: Arial, sans-serif; margin: 20px; padding: 10px;">
+                    <h2 style="text-align: center;">STRUK PEMBAYARAN PDAM SIDOARJO</h2>
+                    <p><strong>TANGGAL:</strong> ${receipt.tanggal}</p>
+                    <p><strong>NO. RESI:</strong> ${receipt.noResi}</p>
+                    <p><strong>NAMA PAM:</strong> ${receipt.namaPAM}</p>
+                    <p><strong>NO. PELANGGAN:</strong> ${receipt.noPelanggan}</p>
+                    <p><strong>NAMA:</strong> ${receipt.customerName}</p>
+                    <p><strong>ALAMAT:</strong> ${receipt.customerAddress}</p>
+                    <p><strong>RINCIAN TAGIHAN: </strong></p>
+                    <ul>`
+
+            receipt.rincianTagihan.forEach((bill) => {
+              receiptHtml += `<li>${bill.bulan} ${
+                bill.tahun
+              }: Rp ${bill.nominal.toLocaleString()} (Denda: Rp ${bill.penalty.toLocaleString()})</li>`
+            })
+
+            receiptHtml += `
+                    </ul>
+                    <p><strong>TOTAL TAGIHAN:</strong> Rp ${receipt.totalTagihan.toLocaleString()}</p>
+                    <p><strong>DENDA:</strong> Rp ${receipt.denda.toLocaleString()}</p>
+                    <p><strong>ADMIN:</strong> Rp ${receipt.adminCharge.toLocaleString()}</p>
+                    <p><strong>TERBILANG:</strong> ${receipt.terbilang}</p>
+                    <p style="text-align: center; margin-top: 20px;">PDAM SIDOARJO MENYATAKAN STRUK INI SEBAGAI BUKTI PEMBAYARAN YANG SAH</p>
+                </div>`
+
+            $('#result').html(receiptHtml)
+          } else {
+            $('#result').html(
+              '<p style="color: red;">Error: ' + data.message + '</p>'
+            )
+          }
+        }).fail(function () {
+          $('#result').html(
+            '<p style="color: red;">Request failed. Please try again later.</p>'
+          )
+        })
+      })
+
+      $('#historyBtn').click(function () {
+        const idpel = $('#idpel').val()
+        const kode_produk = $('#pdam').val()
+
+        if (!idpel || !kode_produk) {
+          alert('Please enter both idpel and kode_produk')
+          return
+        }
+
+        // Send GET request with query parameters
+        $.get('/history', { idpel, kode_produk }, function (data) {
+          console.log('Response data:', data)
+          if (data.length === 0) {
+            $('#result').html('<p>No transaction history found.</p>')
+            return
+          }
+
+          const historyData = data.data
+
+          console.log('testing ejs:', historyData)
+
+          let historyHtml = '<h2>Transaction History</h2>'
+
+          historyData.forEach((historyData) => {
+            historyHtml += `
+      <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 20px;">
+        <h3>Transaction</h3>
+        <p><strong>Date:</strong> ${historyData.tanggal}</p>
+        <p><strong>No. Resi:</strong> ${historyData.noResi}</p>
+        <p><strong>Nama PAM:</strong> ${historyData.namaPAM}</p>
+        <p><strong>No. Pelanggan:</strong> ${historyData.noPelanggan}</p>
+        <p><strong>Customer Name:</strong> ${historyData.customerName}</p>
+        <p><strong>Customer Address:</strong> ${historyData.customerAddress}</p>
+
+        <h4>Rincian Tagihan</h4>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="border: 1px solid #ccc; padding: 5px;">Bulan</th>
+              <th style="border: 1px solid #ccc; padding: 5px;">Tahun</th>
+              <th style="border: 1px solid #ccc; padding: 5px;">Nominal</th>
+              <th style="border: 1px solid #ccc; padding: 5px;">Penalty</th>
+            </tr>
+          </thead>
+          <tbody>`
+
+            historyData.rincianTagihan.forEach((bill) => {
+              historyHtml += `
+          <tr>
+            <td style="border: 1px solid #ccc; padding: 5px;">${bill.bulan}</td>
+            <td style="border: 1px solid #ccc; padding: 5px;">${bill.tahun}</td>
+            <td style="border: 1px solid #ccc; padding: 5px;">Rp ${bill.nominal}</td>
+            <td style="border: 1px solid #ccc; padding: 5px;">Rp ${bill.penalty}</td>
+          </tr>`
+            })
+
+            historyHtml += `
+          </tbody>
+        </table>
+
+        <p><strong>Total Tagihan:</strong> Rp ${historyData.totalTagihan}</p>
+        <p><strong>Admin Charge:</strong> Rp ${historyData.adminCharge}</p>
+        <p><strong>Created At:</strong> ${
+          historyData.createdAt
+        }</p>
+      </div>`
+          })
+
+          $('#result').html(historyHtml)
+        }).fail(function (error) {
+          console.log('Error fetching history:', error.responseText)
+          $('#result').html(`<p style="color: red;">${error.responseText}</p>`)
+        })
+      })
+
+      $('#downloadPdfBtn').click(function () {
+        const resultElement = document.getElementById('result')
+
+        if (!resultElement.innerHTML.trim()) {
+          alert('Tidak ada data untuk didownload sebagai PDF.')
+          return
+        }
+
+        html2canvas(resultElement).then(function (canvas) {
+          const imgData = canvas.toDataURL('image/png')
+          const pdf = new jspdf.jsPDF()
+
+          const imgWidth = 190
+          const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+          pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight)
+
+          pdf.save('struk-pdam.pdf')
+        })
+      })
+    </script>
+  </body>
+</html>
